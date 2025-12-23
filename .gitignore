@@ -2,3 +2,12 @@ serviceAccountKey.json
 .env
 .env.*
 node_modules/
+```
+
+### 2. **Tạo file .gitignore**
+```
+.env
+.env.local
+serviceAccountKey.json
+node_modules/
+*.log
