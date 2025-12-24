@@ -33,7 +33,7 @@ const db = admin.firestore();
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-const FROM_EMAIL = process.env.ADMIN_EMAIL || 'phuquocvuong233@gmail.com';
+const FROM_EMAIL = process.env.ADMIN_EMAIL || 'thang.nguyen@lockernlock.vn';
 
 async function sendOtpEmail(email, otp) {
   const mailOptions = {
