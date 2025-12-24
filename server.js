@@ -1,24 +1,25 @@
 require('dotenv').config();
+console.log('🔑 SENDGRID_API_KEY:', process.env.SENDGRID_API_KEY ? 
+  `${process.env.SENDGRID_API_KEY.substring(0, 15)}...` : 
+  '❌ KHÔNG TÌM THẤY');
 const express = require('express');
 const admin = require('firebase-admin');
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 const cors = require('cors');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Kiểm tra environment variables
-const requiredEnvVars = ['GMAIL_USER', 'GMAIL_APP_PASSWORD', 'FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY'];
+const requiredEnvVars = ['SENDGRID_API_KEY', 'FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY'];
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingVars.length > 0) {
-  console.error('❌ Thiếu các biến môi trường:', missingVars.join(', '));
+  console.error('Thiếu các biến môi trường:', missingVars.join(', '));
   console.error('Vui lòng kiểm tra file .env');
   process.exit(1);
 }
 
-// Khởi tạo Firebase Admin với env variables
 admin.initializeApp({
   credential: admin.credential.cert({
     projectId: process.env.FIREBASE_PROJECT_ID,
@@ -30,25 +31,9 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-// Cấu hình Gmail SMTP với Nodemailer
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD
-  }
-});
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-// Verify transporter configuration
-transporter.verify(function (error, success) {
-  if (error) {
-    console.error('❌ Lỗi cấu hình email:', error);
-  } else {
-    console.log('✅ Email server sẵn sàng gửi mail');
-  }
-});
-
-const FROM_EMAIL = process.env.GMAIL_USER;
+const FROM_EMAIL = process.env.ADMIN_EMAIL || 'phuquocvuong233@gmail.com';
 
 async function sendOtpEmail(email, otp) {
   const mailOptions = {
@@ -148,12 +133,16 @@ async function sendOtpEmail(email, otp) {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ Gmail SMTP: Email OTP đã gửi tới ${email}`);
+    await sgMail.send(mailOptions);
+    console.log(`SendGrid: Email OTP đã gửi tới ${email}`);
   } catch (error) {
-    console.error("❌ Lỗi gửi email qua Gmail SMTP:", error);
-    throw error;
+  console.error("❌ Lỗi gửi email qua SendGrid:", error.response?.body || error);
+    if (error.response?.body?.errors) {
+    console.error("Chi tiết lỗi:", JSON.stringify(error.response.body.errors, null, 2));
   }
+  
+  throw error;
+}
 }
 
 app.post('/api/send-reset-otp', async (req, res) => {
@@ -540,18 +529,12 @@ async function sendMail(email, sensor, type, current, threshold) {
   </html>
   `;
 
-  try {
-    await transporter.sendMail({
-      to: email,
-      from: `"Smart Farming" <${FROM_EMAIL}>`,
-      subject: `Cảnh báo ${type} tại node ${sensor}`,
-      html: htmlBody
-    });
-    console.log(`✅ Gmail SMTP: Email cảnh báo đã gửi tới ${email}`);
-  } catch (error) {
-    console.error("❌ Lỗi gửi email cảnh báo:", error);
-    throw error;
-  }
+  await sgMail.send({
+    to: email,
+    from: `"Smart Farming" <${FROM_EMAIL}>`,
+    subject: `Cảnh báo ${type} tại node ${sensor}`,
+    html: htmlBody
+  });
 }
 
 app.post('/api/send-warning-gmail', async (req, res) => {
@@ -560,15 +543,17 @@ app.post('/api/send-warning-gmail', async (req, res) => {
     await sendMail(email, sensor, type, currentValues, thresholdValues);
     res.json({ success: true, message: "Mail sent!" });
   } catch (error) {
-    console.error('Error sending warning email:', error);
-    res.status(500).json({ success: false, message: "Failed to send email" });
+  console.error("Lỗi gửi email qua SendGrid:", error.response?.body || error);
+    if (error.response?.body?.errors) {
+    console.error("Chi tiết lỗi:", JSON.stringify(error.response.body.errors, null, 2));
   }
+  
+  throw error;
+}
 });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`\n✅ Server running on port ${PORT}`);
-  console.log(`📧 Email service: Gmail SMTP`);
-  console.log(`🔥 Firebase Admin initialized`);
-  console.log(`🕐 Server time: ${new Date().toISOString()}\n`);
+  console.log(`\nServer đang chạy ở Port: ${PORT}`);
+  console.log(`Server time: ${new Date().toISOString()}\n`);
 });
