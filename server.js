@@ -1,4 +1,7 @@
 require('dotenv').config();
+console.log('🔑 SENDGRID_API_KEY:', process.env.SENDGRID_API_KEY ? 
+  `${process.env.SENDGRID_API_KEY.substring(0, 15)}...` : 
+  '❌ KHÔNG TÌM THẤY');
 const express = require('express');
 const admin = require('firebase-admin');
 const sgMail = require('@sendgrid/mail');
@@ -136,9 +139,15 @@ async function sendOtpEmail(email, otp) {
     await sgMail.send(mailOptions);
     console.log(`SendGrid: Email OTP đã gửi tới ${email}`);
   } catch (error) {
-    console.error("Lỗi gửi email qua SendGrid:", error.response?.body || error);
-    throw error;
+  console.error("❌ Lỗi gửi email qua SendGrid:", error.response?.body || error);
+  
+  // THÊM DÒNG NÀY để xem chi tiết lỗi:
+  if (error.response?.body?.errors) {
+    console.error("Chi tiết lỗi:", JSON.stringify(error.response.body.errors, null, 2));
   }
+  
+  throw error;
+}
 }
 
 app.post('/api/send-reset-otp', async (req, res) => {
@@ -539,9 +548,15 @@ app.post('/api/send-warning-gmail', async (req, res) => {
     await sendMail(email, sensor, type, currentValues, thresholdValues);
     res.json({ success: true, message: "Mail sent!" });
   } catch (error) {
-    console.error('Error sending warning email:', error);
-    res.status(500).json({ success: false, message: "Failed to send email" });
+  console.error("❌ Lỗi gửi email qua SendGrid:", error.response?.body || error);
+  
+  // THÊM DÒNG NÀY để xem chi tiết lỗi:
+  if (error.response?.body?.errors) {
+    console.error("Chi tiết lỗi:", JSON.stringify(error.response.body.errors, null, 2));
   }
+  
+  throw error;
+}
 });
 
 const PORT = process.env.PORT || 5000;
