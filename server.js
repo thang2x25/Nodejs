@@ -418,7 +418,7 @@ app.post("/statusUser", async (req, res) => {
       message: "Lỗi xác thực hoặc không thể ghi database."
     });
   }
-});
+}); 
 
 async function sendMail(email, sensor, type, current, threshold) {
   const htmlBody = `
@@ -551,6 +551,37 @@ app.post('/api/send-warning-gmail', async (req, res) => {
   throw error;
 }
 });
+
+app.post("/checkRole", async (req, res) => {
+  const { idToken } = req.body;
+
+  try {
+    const authorize = await admin.auth().verifyIdToken(idToken);
+    const uid = authorize.uid;
+
+    const snapshot = await admin.database().ref(`authUsers/${uid}/isAdmin`).once("value");
+    if (snapshot.val() === true) {
+      return res.status(200).json({
+        success: true,
+        message: "Xác thực thành công, được phép truy cập vào giao diện này"
+      });
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: "Bạn không có quyền Admin"
+    });
+
+  } 
+  catch (err) {
+    console.error(err);
+    return res.status(401).json({
+      success: false,
+      message: "Token không hợp lệ hoặc đã hết hạn"
+    });
+  }
+});
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
