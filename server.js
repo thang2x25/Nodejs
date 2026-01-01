@@ -1,7 +1,4 @@
 require('dotenv').config();
-console.log('🔑 SENDGRID_API_KEY:', process.env.SENDGRID_API_KEY ? 
-  `${process.env.SENDGRID_API_KEY.substring(0, 15)}...` : 
-  '❌ KHÔNG TÌM THẤY');
 const express = require('express');
 const admin = require('firebase-admin');
 const sgMail = require('@sendgrid/mail');
